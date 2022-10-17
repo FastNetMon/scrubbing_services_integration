@@ -53,7 +53,7 @@ func main() {
 		log.Fatal("Please set example_prefix in configuration")
 	}
 
-	fake_auth := true
+	fake_auth := false
 
 	auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
 
@@ -125,7 +125,14 @@ func f5_announce_route(auth_token string, prefix string, withdrawal bool) error 
 		return fmt.Errorf("Cannot make POST query: %v", err)
 	}
 
-	if res.StatusCode == 201 {
+	// We have different expected response codes for announce and withdrawal
+	expected_status_code := 201
+
+	if withdrawal {
+		expected_status_code = 200
+	}
+
+	if res.StatusCode == expected_status_code {
 		res_body, err := ioutil.ReadAll(res.Body)
 
 		if err != nil {
