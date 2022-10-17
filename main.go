@@ -62,6 +62,74 @@ func main() {
 	}
 
 	log.Printf("Successful auth with token: %v", auth_token)
+
+	err = f5_announce_route(conf.ExamplePrefix, false)
+
+	if err != nil {
+		log.Printf("Cannot announce prefix: %v", conf.ExamplePrefix)
+		// We do not stop here as we need to withdraw it even if something happened during withdrawal
+	}
+
+}
+
+// Announce route
+func f5_announce_route(prefix string, withdrawal bool) error {
+	// Set reasonable timeout
+	http_client := &http.Client{
+		Timeout: time.Second * 60,
+	}
+
+	prefix_announce_query := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "string",
+			"attributes": map[string]interface{}{
+				"prefix":  prefix,
+				"comment": "Announced by FastNetMon",
+			},
+		},
+	}
+
+	prefix_announce_json, err := json.Marshal(prefix_announce_query)
+
+	if err != nil {
+		return fmt.Errorf("Cannot encode prefix announce message to JSON: %v", err)
+	}
+
+	log.Printf("Prefix announce message: %v", string(prefix_announce_json))
+
+	req, err := http.NewRequest(http.MethodPost, f5_api_url+"routes", bytes.NewReader(prefix_announce_json))
+
+	if err != nil {
+		return fmt.Errorf("Cannot create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := http_client.Do(req)
+
+	if err != nil {
+		return fmt.Errorf("Cannot make POST query: %v", err)
+	}
+
+	if res.StatusCode == 201 {
+		res_body, err := ioutil.ReadAll(res.Body)
+
+		if err != nil {
+			return fmt.Errorf("Cannot read body for successful answer: %v", err)
+		}
+
+		log.Printf("Successful prefix announce: %s", string(res_body))
+
+		return nil
+	} else {
+		// According to documentation it can be 400 and 401
+		// But in reality we observed 500
+		// We ignore error as we OK with empty body
+		res_body, _ := ioutil.ReadAll(res.Body)
+
+		return fmt.Errorf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
+	}
+
 }
 
 // Auth on F5 Silverline
