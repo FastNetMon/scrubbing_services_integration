@@ -84,6 +84,49 @@ func main() {
 		log.Fatalf("Cannot make POST query: %v", err)
 	}
 
+	// Fake structure for testing without live API connection
+	fake_successful_auth_answer := `
+{
+  "CustomerToken": {
+    "value": {
+      "data": {
+        "id": null,
+        "type": "sessions",
+        "attributes": {
+          "auth_token": "sampletoken"
+        }
+      }
+    }
+  }
+}
+`
+	_ = fake_successful_auth_answer
+
+	type AuthResponseAttributes struct {
+		AuthToken string `json:"auth_token"`
+	}
+
+	type AuthResponseDataField struct {
+		// We ignore Id field as type of it is not very clear
+		Type       string                 `json:"type"`
+		Attributes AuthResponseAttributes `json:"attributes"`
+	}
+
+	type AuthResponseData struct {
+		DataField AuthResponseDataField `json:"data"`
+	}
+
+	type AuthResponseValue struct {
+		Value AuthResponseData `json:"value"`
+	}
+
+	// Structure for auth response
+	type AuthResponse struct {
+		CustomerToken AuthResponseValue `json:"CustomerToken"`
+	}
+
+	authRes := AuthResponse{}
+
 	if res.StatusCode == 201 {
 		res_body, err := ioutil.ReadAll(res.Body)
 
@@ -91,8 +134,19 @@ func main() {
 			log.Fatalf("Cannot read body for successful answer: %v", err)
 		}
 
-		log.Printf("Successful auth: %s", res_body)
+		log.Printf("Successful auth: %+v", res_body)
+
+		err = json.Unmarshal(res_body, &authRes)
+
+		if err != nil {
+			log.Fatalf("Cannot unmarshal JSON data: %v", err)
+		}
+
+		log.Fatalf("Successfully retrieved auth token: %+v", authRes.CustomerToken.Value.DataField.Attributes.AuthToken)
+
 	} else {
+		// According to documentation it can be 400 and 401
+		// But in reality we observed 500
 		// We ignore error as we OK with empty body
 		res_body, _ := ioutil.ReadAll(res.Body)
 
