@@ -48,7 +48,9 @@ func main() {
 		log.Fatal("Please set f5_password field in configuration")
 	}
 
-	auth_token, err := f5_auth(conf.F5Email, conf.F5Password)
+	fake_auth := false
+
+	auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
 
 	if err != nil {
 		log.Fatalf("Auth failed: %v", err)
@@ -58,7 +60,7 @@ func main() {
 }
 
 // Auth on F5 Silverline
-func f5_auth(email string, password string) (string, error) {
+func f5_auth(email string, password string, fake_auth bool) (string, error) {
 
 	// Set reasonable timeout
 	http_client := &http.Client{
@@ -113,8 +115,6 @@ func f5_auth(email string, password string) (string, error) {
   }
 }
 `
-	_ = fake_successful_auth_answer
-
 	type AuthResponseAttributes struct {
 		AuthToken string `json:"auth_token"`
 	}
@@ -139,6 +139,16 @@ func f5_auth(email string, password string) (string, error) {
 	}
 
 	authRes := AuthResponse{}
+
+	if fake_auth {
+		err = json.Unmarshal([]byte(fake_successful_auth_answer), &authRes)
+
+		if err != nil {
+			return "", fmt.Errorf("Cannot decode example auth response: %v", err)
+		}
+
+		return authRes.CustomerToken.Value.DataField.Attributes.AuthToken, nil
+	}
 
 	if res.StatusCode == 201 {
 		res_body, err := ioutil.ReadAll(res.Body)
