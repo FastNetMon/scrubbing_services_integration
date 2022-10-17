@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,6 +16,8 @@ type Configuration struct {
 	F5Email      string `json:"f5_email"`
 	F5Password   string `json:"f5_password"`
 }
+
+var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
 
 func main() {
 	conf := Configuration{}
@@ -45,19 +48,29 @@ func main() {
 		log.Fatal("Please set f5_password field in configuration")
 	}
 
+	auth_token, err := f5_auth(conf.F5Email, conf.F5Password)
+
+	if err != nil {
+		log.Fatalf("Auth failed: %v", err)
+	}
+
+	log.Printf("Successful auth with token: %v", auth_token)
+}
+
+// Auth on F5 Silverline
+func f5_auth(email string, password string) (string, error) {
+
 	// Set reasonable timeout
 	http_client := &http.Client{
 		Timeout: time.Second * 60,
 	}
 
-	api_url := "https://portal.f5silverline.com/api/v1/"
-
 	auth_query := map[string]interface{}{
 		"data": map[string]interface{}{
 			"type": "string",
 			"attributes": map[string]interface{}{
-				"email":    conf.F5Email,
-				"password": conf.F5Password,
+				"email":    email,
+				"password": password,
 			},
 		},
 	}
@@ -65,15 +78,15 @@ func main() {
 	auth_query_json, err := json.Marshal(auth_query)
 
 	if err != nil {
-		log.Fatal("Cannot encode authentication message to JSON: %v", err)
+		return "", fmt.Errorf("Cannot encode authentication message to JSON: %v", err)
 	}
 
 	log.Printf("Auth message: %v", string(auth_query_json))
 
-	req, err := http.NewRequest(http.MethodPost, api_url+"sessions", bytes.NewReader(auth_query_json))
+	req, err := http.NewRequest(http.MethodPost, f5_api_url+"sessions", bytes.NewReader(auth_query_json))
 
 	if err != nil {
-		log.Fatalf("Cannot create request: %v", err)
+		return "", fmt.Errorf("Cannot create request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -81,7 +94,7 @@ func main() {
 	res, err := http_client.Do(req)
 
 	if err != nil {
-		log.Fatalf("Cannot make POST query: %v", err)
+		return "", fmt.Errorf("Cannot make POST query: %v", err)
 	}
 
 	// Fake structure for testing without live API connection
@@ -131,7 +144,7 @@ func main() {
 		res_body, err := ioutil.ReadAll(res.Body)
 
 		if err != nil {
-			log.Fatalf("Cannot read body for successful answer: %v", err)
+			return "", fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
 		log.Printf("Successful auth: %+v", res_body)
@@ -139,10 +152,10 @@ func main() {
 		err = json.Unmarshal(res_body, &authRes)
 
 		if err != nil {
-			log.Fatalf("Cannot unmarshal JSON data: %v", err)
+			return "", fmt.Errorf("Cannot unmarshal JSON data: %v", err)
 		}
 
-		log.Fatalf("Successfully retrieved auth token: %+v", authRes.CustomerToken.Value.DataField.Attributes.AuthToken)
+		return authRes.CustomerToken.Value.DataField.Attributes.AuthToken, nil
 
 	} else {
 		// According to documentation it can be 400 and 401
@@ -150,6 +163,6 @@ func main() {
 		// We ignore error as we OK with empty body
 		res_body, _ := ioutil.ReadAll(res.Body)
 
-		log.Fatalf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
+		return "", fmt.Errorf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
 	}
 }
