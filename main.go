@@ -53,7 +53,7 @@ func main() {
 		log.Fatal("Please set example_prefix in configuration")
 	}
 
-	fake_auth := false
+	fake_auth := true
 
 	auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
 
@@ -63,17 +63,24 @@ func main() {
 
 	log.Printf("Successful auth with token: %v", auth_token)
 
-	err = f5_announce_route(conf.ExamplePrefix, false)
+	err = f5_announce_route(auth_token, conf.ExamplePrefix, false)
 
 	if err != nil {
-		log.Printf("Cannot announce prefix: %v", conf.ExamplePrefix)
+		log.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
+		// We do not stop here as we need to withdraw it even if something happened during withdrawal
+	}
+
+	err = f5_announce_route(auth_token, conf.ExamplePrefix, true)
+
+	if err != nil {
+		log.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
 		// We do not stop here as we need to withdraw it even if something happened during withdrawal
 	}
 
 }
 
 // Announce route
-func f5_announce_route(prefix string, withdrawal bool) error {
+func f5_announce_route(auth_token string, prefix string, withdrawal bool) error {
 	// Set reasonable timeout
 	http_client := &http.Client{
 		Timeout: time.Second * 60,
@@ -84,7 +91,7 @@ func f5_announce_route(prefix string, withdrawal bool) error {
 			"type": "string",
 			"attributes": map[string]interface{}{
 				"prefix":  prefix,
-				"comment": "Announced by FastNetMon",
+				"comment": "Announced by FastNetMon Advanced",
 			},
 		},
 	}
@@ -97,12 +104,19 @@ func f5_announce_route(prefix string, withdrawal bool) error {
 
 	log.Printf("Prefix announce message: %v", string(prefix_announce_json))
 
-	req, err := http.NewRequest(http.MethodPost, f5_api_url+"routes", bytes.NewReader(prefix_announce_json))
+	method := http.MethodPost
+
+	if withdrawal {
+		method = http.MethodDelete
+	}
+
+	req, err := http.NewRequest(method, f5_api_url+"routes", bytes.NewReader(prefix_announce_json))
 
 	if err != nil {
 		return fmt.Errorf("Cannot create request: %v", err)
 	}
 
+	req.Header.Set("X-Authorization-Token", auth_token)
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := http_client.Do(req)
@@ -230,7 +244,7 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 			return "", fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
-		log.Printf("Successful auth: %+v", res_body)
+		log.Printf("Successful auth: %+v %v", res, res_body)
 
 		err = json.Unmarshal(res_body, &authRes)
 
