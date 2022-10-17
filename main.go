@@ -53,7 +53,7 @@ func main() {
 	api_url := "https://portal.f5silverline.com/api/v1/"
 
 	auth_query := map[string]interface{}{
-		"dataa": map[string]interface{}{
+		"data": map[string]interface{}{
 			"type": "string",
 			"attributes": map[string]interface{}{
 				"email":    conf.F5Email,
@@ -84,12 +84,18 @@ func main() {
 		log.Fatalf("Cannot make POST query: %v", err)
 	}
 
-	if res.StatusCode == 400 {
+	if res.StatusCode == 201 {
+		res_body, err := ioutil.ReadAll(res.Body)
+
+		if err != nil {
+			log.Fatalf("Cannot read body for successful answer: %v", err)
+		}
+
+		log.Printf("Successful auth: %s", res_body)
+	} else {
 		// We ignore error as we OK with empty body
 		res_body, _ := ioutil.ReadAll(res.Body)
 
-		log.Fatalf("Auth failed with bad request. Body: %s", res_body)
-	} else {
-		log.Printf("Output: %v", res.StatusCode)
+		log.Fatalf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
 	}
 }
