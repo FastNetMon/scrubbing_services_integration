@@ -12,9 +12,10 @@ import (
 
 type Configuration struct {
 	// f5
-	ProviderName string `json:"provider_name"`
-	F5Email      string `json:"f5_email"`
-	F5Password   string `json:"f5_password"`
+	ProviderName  string `json:"provider_name"`
+	F5Email       string `json:"f5_email"`
+	F5Password    string `json:"f5_password"`
+	ExamplePrefix string `json:"example_prefix"`
 }
 
 var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
@@ -46,6 +47,10 @@ func main() {
 
 	if conf.F5Password == "" {
 		log.Fatal("Please set f5_password field in configuration")
+	}
+
+	if conf.ExamplePrefix == "" {
+		log.Fatal("Please set example_prefix in configuration")
 	}
 
 	fake_auth := false
