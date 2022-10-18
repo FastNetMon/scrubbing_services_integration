@@ -98,7 +98,7 @@ func main() {
 			log.Fatal("Please set example_prefix in configuration")
 		}
 
-		fake_auth := false
+		fake_auth := true
 
 		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword, fake_auth)
 
@@ -184,6 +184,55 @@ func f5_announce_route(auth_token string, prefix string, withdrawal bool) error 
 		return fmt.Errorf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
 	}
 
+}
+
+// Announce route
+func path_announce_route(auth_token string, prefix string, withdrawal bool) error {
+	// Set reasonable timeout
+	http_client := &http.Client{
+		Timeout: time.Second * 60,
+	}
+
+	method := http.MethodPost
+
+	if withdrawal {
+		method = http.MethodDelete
+	}
+
+	// We use empty query
+	req, err := http.NewRequest(method, path_api_url+"diversions/"+prefix, strings.NewReader(""))
+
+	if err != nil {
+		return fmt.Errorf("Cannot create request: %v", err)
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", "Bearer "+auth_token)
+
+	res, err := http_client.Do(req)
+
+	if err != nil {
+		return fmt.Errorf("Cannot make POST query: %v", err)
+	}
+
+	if res.StatusCode == 202 {
+		res_body, err := ioutil.ReadAll(res.Body)
+
+		if err != nil {
+			return fmt.Errorf("Cannot read body for successful answer: %v", err)
+		}
+
+		log.Printf("Successful auth response: %+v %v", res)
+		log.Printf("Successful auth response body: %v", string(res_body))
+
+		return nil
+	} else {
+		// According to documentation it can be 401, 404, 422
+		// We ignore error as we OK with empty body
+		res_body, _ := ioutil.ReadAll(res.Body)
+
+		return fmt.Errorf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
+	}
 }
 
 // Auth on Path.net
