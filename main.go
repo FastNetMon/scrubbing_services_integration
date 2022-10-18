@@ -98,7 +98,9 @@ func main() {
 			log.Fatal("Please set example_prefix in configuration")
 		}
 
-		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword)
+		fake_auth := false
+
+		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword, fake_auth)
 
 		if err != nil {
 			log.Fatalf("Cannot auth: %v", err)
@@ -185,7 +187,7 @@ func f5_announce_route(auth_token string, prefix string, withdrawal bool) error 
 }
 
 // Auth on Path.net
-func path_auth(username string, password string) (string, error) {
+func path_auth(username string, password string, fake_auth bool) (string, error) {
 	// Set reasonable timeout
 	http_client := &http.Client{
 		Timeout: time.Second * 60,
@@ -213,6 +215,28 @@ func path_auth(username string, password string) (string, error) {
 		return "", fmt.Errorf("Cannot make POST query: %v", err)
 	}
 
+	type PathAuthResponse struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+	}
+
+	authRes := PathAuthResponse{}
+
+	if fake_auth {
+		fake_successfull_auth_response := `{
+  "access_token": "token",
+  "token_type": "token_type" 
+  }
+`
+		err = json.Unmarshal([]byte(fake_successfull_auth_response), &authRes)
+
+		if err != nil {
+			return "", fmt.Errorf("Cannot unmarshal JSON data: %v", err)
+		}
+
+		return authRes.AccessToken, nil
+	}
+
 	if res.StatusCode == 200 {
 		res_body, err := ioutil.ReadAll(res.Body)
 
@@ -222,13 +246,6 @@ func path_auth(username string, password string) (string, error) {
 
 		log.Printf("Successful auth response: %+v %v", res)
 		log.Printf("Successful auth response body: %v", string(res_body))
-
-		type PathAuthResponse struct {
-			AccessToken string `json:"access_token"`
-			TokenType   string `json:"token_type"`
-		}
-
-		authRes := PathAuthResponse{}
 
 		err = json.Unmarshal(res_body, &authRes)
 
