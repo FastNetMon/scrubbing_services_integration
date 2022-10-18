@@ -98,6 +98,13 @@ func main() {
 			log.Fatal("Please set example_prefix in configuration")
 		}
 
+		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword)
+
+		if err != nil {
+			log.Fatalf("Cannot auth: %v", err)
+		}
+
+		log.Printf("Successful auth with token: %s", auth_token)
 	} else {
 		log.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
 	}
