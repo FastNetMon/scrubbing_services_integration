@@ -194,21 +194,9 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 	}
 
 	// Fake structure for testing without live API connection
-	fake_successful_auth_answer := `
-{
-  "CustomerToken": {
-    "value": {
-      "data": {
-        "id": null,
-        "type": "sessions",
-        "attributes": {
-          "auth_token": "sampletoken"
-        }
-      }
-    }
-  }
-}
-`
+	// Example in their documentation is incorrect, I got this one from real API
+	fake_successful_auth_answer := `{"data":{"id":null,"type":"sessions","attributes":{"auth_token":"17c346a69336039e6bc44cf62e6a14bb"}}}`
+
 	type AuthResponseAttributes struct {
 		AuthToken string `json:"auth_token"`
 	}
@@ -223,16 +211,7 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 		DataField AuthResponseDataField `json:"data"`
 	}
 
-	type AuthResponseValue struct {
-		Value AuthResponseData `json:"value"`
-	}
-
-	// Structure for auth response
-	type AuthResponse struct {
-		CustomerToken AuthResponseValue `json:"CustomerToken"`
-	}
-
-	authRes := AuthResponse{}
+	authRes := AuthResponseData{}
 
 	if fake_auth {
 		err = json.Unmarshal([]byte(fake_successful_auth_answer), &authRes)
@@ -241,7 +220,7 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 			return "", fmt.Errorf("Cannot decode example auth response: %v", err)
 		}
 
-		return authRes.CustomerToken.Value.DataField.Attributes.AuthToken, nil
+		return authRes.DataField.Attributes.AuthToken, nil
 	}
 
 	if res.StatusCode == 201 {
@@ -251,7 +230,7 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 			return "", fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
-		log.Printf("Successful auth: %+v %v", res, res_body)
+		log.Printf("Successful auth: %+v %v", res, string(res_body))
 
 		err = json.Unmarshal(res_body, &authRes)
 
@@ -259,7 +238,13 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 			return "", fmt.Errorf("Cannot unmarshal JSON data: %v", err)
 		}
 
-		return authRes.CustomerToken.Value.DataField.Attributes.AuthToken, nil
+		auth_token := authRes.DataField.Attributes.AuthToken
+
+		if auth_token == "" {
+			return "", fmt.Errorf("Empty token")
+		}
+
+		return auth_token, nil
 
 	} else {
 		// According to documentation it can be 400 and 401
