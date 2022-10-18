@@ -230,7 +230,8 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 			return "", fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
-		log.Printf("Successful auth: %+v %v", res, string(res_body))
+		log.Printf("Successful auth response: %+v %v", res)
+		log.Printf("Successful auth response body: %v", string(res_body))
 
 		err = json.Unmarshal(res_body, &authRes)
 
