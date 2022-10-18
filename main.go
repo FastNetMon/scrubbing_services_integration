@@ -98,7 +98,7 @@ func main() {
 			log.Fatal("Please set example_prefix in configuration")
 		}
 
-		fake_auth := true
+		fake_auth := false
 
 		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword, fake_auth)
 
@@ -107,6 +107,21 @@ func main() {
 		}
 
 		log.Printf("Successful auth with token: %s", auth_token)
+
+		err = path_announce_route(auth_token, conf.ExamplePrefix, false)
+
+		if err != nil {
+			log.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
+			// We do not stop here as we need to withdraw it even if something happened during withdrawal
+		}
+
+		err = path_announce_route(auth_token, conf.ExamplePrefix, true)
+
+		if err != nil {
+			log.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
+			// We do not stop here as we need to withdraw it even if something happened during withdrawal
+		}
+
 	} else {
 		log.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
 	}
