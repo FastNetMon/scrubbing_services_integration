@@ -11,14 +11,22 @@ import (
 )
 
 type Configuration struct {
-	// f5
+	// f5 or path
 	ProviderName  string `json:"provider_name"`
-	F5Email       string `json:"f5_email"`
-	F5Password    string `json:"f5_password"`
 	ExamplePrefix string `json:"example_prefix"`
+
+	// F5 Silverline credentials
+	F5Email    string `json:"f5_email"`
+	F5Password string `json:"f5_password"`
+
+	// Path credentials
+	PathUsername string `json:"path_username"`
+	PathPassword string `json:"path_password"`
 }
 
 var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
+
+var path_api_url string = "https://api.path.net/"
 
 func main() {
 	conf := Configuration{}
@@ -37,46 +45,60 @@ func main() {
 		log.Fatalf("Cannot decode configuration file %s: %v", configuration_file_path, err)
 	}
 
-	if conf.ProviderName != "f5" {
-		log.Fatalf("Unknown provider name, we support only f5: %s", conf.ProviderName)
+	if conf.ProviderName == "f5" {
+
+		if conf.F5Email == "" {
+			log.Fatal("Please set f5_email field in configuration")
+		}
+
+		if conf.F5Password == "" {
+			log.Fatal("Please set f5_password field in configuration")
+		}
+
+		if conf.ExamplePrefix == "" {
+			log.Fatal("Please set example_prefix in configuration")
+		}
+
+		fake_auth := false
+
+		auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
+
+		if err != nil {
+			log.Fatalf("Auth failed: %v", err)
+		}
+
+		log.Printf("Successful auth with token: %v", auth_token)
+
+		err = f5_announce_route(auth_token, conf.ExamplePrefix, false)
+
+		if err != nil {
+			log.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
+			// We do not stop here as we need to withdraw it even if something happened during withdrawal
+		}
+
+		err = f5_announce_route(auth_token, conf.ExamplePrefix, true)
+
+		if err != nil {
+			log.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
+			// We do not stop here as we need to withdraw it even if something happened during withdrawal
+		}
+
+	} else if conf.ProviderName == "path" {
+		if conf.PathUsername == "" {
+			log.Fatal("Please set path_username field in configuration")
+		}
+
+		if conf.PathPassword == "" {
+			log.Fatal("Please set path_password field in configuration")
+		}
+
+		if conf.ExamplePrefix == "" {
+			log.Fatal("Please set example_prefix in configuration")
+		}
+
+	} else {
+		log.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
 	}
-
-	if conf.F5Email == "" {
-		log.Fatal("Please set f5_email field in configuration")
-	}
-
-	if conf.F5Password == "" {
-		log.Fatal("Please set f5_password field in configuration")
-	}
-
-	if conf.ExamplePrefix == "" {
-		log.Fatal("Please set example_prefix in configuration")
-	}
-
-	fake_auth := false
-
-	auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
-
-	if err != nil {
-		log.Fatalf("Auth failed: %v", err)
-	}
-
-	log.Printf("Successful auth with token: %v", auth_token)
-
-	err = f5_announce_route(auth_token, conf.ExamplePrefix, false)
-
-	if err != nil {
-		log.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
-		// We do not stop here as we need to withdraw it even if something happened during withdrawal
-	}
-
-	err = f5_announce_route(auth_token, conf.ExamplePrefix, true)
-
-	if err != nil {
-		log.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
-		// We do not stop here as we need to withdraw it even if something happened during withdrawal
-	}
-
 }
 
 // Announce route
