@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -171,6 +173,76 @@ func f5_announce_route(auth_token string, prefix string, withdrawal bool) error 
 		res_body, _ := ioutil.ReadAll(res.Body)
 
 		return fmt.Errorf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
+	}
+
+}
+
+// Auth on Path.net
+func path_auth(username string, password string) (string, error) {
+	// Set reasonable timeout
+	http_client := &http.Client{
+		Timeout: time.Second * 60,
+	}
+
+	data := url.Values{}
+	data.Set("username", username)
+	data.Set("password", password)
+
+	url_encoded_query := data.Encode()
+
+	log.Printf("Encoded query: %v", string(url_encoded_query))
+
+	req, err := http.NewRequest(http.MethodPost, path_api_url+"token", strings.NewReader(url_encoded_query))
+
+	if err != nil {
+		return "", fmt.Errorf("Cannot create request: %v", err)
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := http_client.Do(req)
+
+	if err != nil {
+		return "", fmt.Errorf("Cannot make POST query: %v", err)
+	}
+
+	if res.StatusCode == 200 {
+		res_body, err := ioutil.ReadAll(res.Body)
+
+		if err != nil {
+			return "", fmt.Errorf("Cannot read body for successful answer: %v", err)
+		}
+
+		log.Printf("Successful auth response: %+v %v", res)
+		log.Printf("Successful auth response body: %v", string(res_body))
+
+		type PathAuthResponse struct {
+			AccessToken string `json:"access_token"`
+			TokenType   string `json:"token_type"`
+		}
+
+		authRes := PathAuthResponse{}
+
+		err = json.Unmarshal(res_body, &authRes)
+
+		if err != nil {
+			return "", fmt.Errorf("Cannot unmarshal JSON data: %v", err)
+		}
+
+		auth_token := authRes.AccessToken
+
+		if auth_token == "" {
+			return "", fmt.Errorf("Empty token")
+		}
+
+		return auth_token, nil
+
+	} else {
+		// According to documentation it can be 401 or 422
+		// We ignore error as we OK with empty body
+		res_body, _ := ioutil.ReadAll(res.Body)
+
+		return "", fmt.Errorf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
 	}
 
 }
