@@ -237,8 +237,8 @@ func path_announce_route(auth_token string, prefix string, withdrawal bool) erro
 			return fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
-		log.Printf("Successful auth response: %+v", res)
-		log.Printf("Successful auth response body: %v", string(res_body))
+		log.Printf("Successful announce response: %+v", res)
+		log.Printf("Successful announce response body: %v", string(res_body))
 
 		return nil
 	} else {
