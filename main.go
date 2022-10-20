@@ -38,6 +38,9 @@ var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
 
 var path_api_url string = "https://api.path.net/"
 
+// Emulate successful auth and try to issue announce commands
+var fake_auth = false
+
 func main() {
 	conf := Configuration{Log_path: "/var/log/fastnetmon/fastnetmon_scrubbing_services_integration.log"}
 
@@ -89,6 +92,17 @@ func main() {
 		fast_logger.Fatalf("Cannot unmarshal data: %v", err)
 	}
 
+	// Scope can be per host or total hostgroups
+	alert_scope := callback_data.AlertScope
+
+	if alert_scope == "" || alert_scope == "host" {
+		// All fine
+	} else if alert_scope == "hostgroup" {
+		fast_logger.Fatalf("We do not support total hostgroups in current version, please talk with support@fastnetmon.com")
+	} else {
+		fast_logger.Fatalf("Unknown scope: %s", alert_scope)
+	}
+
 	action := callback_data.Action
 
 	fast_logger.Printf("Action: %s", action)
@@ -112,8 +126,6 @@ func main() {
 		if conf.ExamplePrefix == "" {
 			fast_logger.Fatal("Please set example_prefix in configuration")
 		}
-
-		fake_auth := false
 
 		auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
 
@@ -149,8 +161,6 @@ func main() {
 		if conf.ExamplePrefix == "" {
 			fast_logger.Fatal("Please set example_prefix in configuration")
 		}
-
-		fake_auth := false
 
 		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword, fake_auth)
 
