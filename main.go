@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,8 +21,7 @@ type Configuration struct {
 	Log_path string `json:"log_path"`
 
 	// f5 or path
-	ProviderName  string `json:"provider_name"`
-	ExamplePrefix string `json:"example_prefix"`
+	ProviderName string `json:"provider_name"`
 
 	// F5 Silverline credentials
 	F5Email    string `json:"f5_email"`
@@ -120,6 +120,27 @@ func main() {
 		withdrawal = true
 	}
 
+	fast_logger.Printf("Attack is against IP %s", callback_data.IP)
+
+	parsed_ip := net.ParseIP(callback_data.IP)
+
+	if parsed_ip == nil {
+		fast_logger.Fatalf("Cannot decode IP: %v", callback_data.IP)
+	}
+
+	ip_v4_address := parsed_ip.To4()
+
+	if ip_v4_address == nil {
+		fast_logger.Fatalf("IPv6 addresses are not supported")
+	}
+
+	// By default, we use use /24 for prefix
+	prefix_to_announce := net.IPNet{IP: ip_v4_address, Mask: net.CIDRMask(24, 32)}
+
+	network_cidr_prefix := prefix_to_announce.String()
+
+	fast_logger.Printf("Prefix to announce: %v", network_cidr_prefix)
+
 	if conf.ProviderName == "f5" {
 
 		if conf.F5Email == "" {
@@ -130,10 +151,6 @@ func main() {
 			fast_logger.Fatal("Please set f5_password field in configuration")
 		}
 
-		if conf.ExamplePrefix == "" {
-			fast_logger.Fatal("Please set example_prefix in configuration")
-		}
-
 		auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
 
 		if err != nil {
@@ -142,11 +159,10 @@ func main() {
 
 		fast_logger.Printf("Successful auth with token: %v", auth_token)
 
-		err = f5_announce_route(auth_token, conf.ExamplePrefix, withdrawal)
+		err = f5_announce_route(auth_token, network_cidr_prefix, withdrawal)
 
 		if err != nil {
-			fast_logger.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
-			// We do not stop here as we need to withdraw it even if something happened during withdrawal
+			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 		}
 
 	} else if conf.ProviderName == "path" {
@@ -158,10 +174,6 @@ func main() {
 			fast_logger.Fatal("Please set path_password field in configuration")
 		}
 
-		if conf.ExamplePrefix == "" {
-			fast_logger.Fatal("Please set example_prefix in configuration")
-		}
-
 		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword, fake_auth)
 
 		if err != nil {
@@ -170,10 +182,10 @@ func main() {
 
 		fast_logger.Printf("Successful auth with token: %s", auth_token)
 
-		err = path_announce_route(auth_token, conf.ExamplePrefix, withdrawal)
+		err = path_announce_route(auth_token, network_cidr_prefix, withdrawal)
 
 		if err != nil {
-			fast_logger.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
+			fast_logger.Printf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 			// We do not stop here as we need to withdraw it even if something happened during withdrawal
 		}
 	} else {

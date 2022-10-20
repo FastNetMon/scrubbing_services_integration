@@ -2,5 +2,4 @@
     "provider_name": "f5",
     "f5_email": "sales@qq.com",
     "f5_password": "cloud_security",
-    "example_prefix": "10.0.0.0/24"
 }
