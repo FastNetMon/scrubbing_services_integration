@@ -128,11 +128,15 @@ func main() {
 		fast_logger.Fatalf("Cannot decode IP: %v", callback_data.IP)
 	}
 
+	// Convert to 4 byte representation
 	ip_v4_address := parsed_ip.To4()
 
 	if ip_v4_address == nil {
 		fast_logger.Fatalf("IPv6 addresses are not supported")
 	}
+
+	// Set last byte to zero to create network address
+	ip_v4_address[3] = 0
 
 	// By default, we use use /24 for prefix
 	prefix_to_announce := net.IPNet{IP: ip_v4_address, Mask: net.CIDRMask(24, 32)}
