@@ -348,7 +348,8 @@ func path_auth(username string, password string, fake_auth bool) (string, error)
 
 	url_encoded_query := data.Encode()
 
-	fast_logger.Printf("Encoded query: %v", string(url_encoded_query))
+	// Do not print it as it has sensitive information
+	// fast_logger.Printf("Encoded query: %v", string(url_encoded_query))
 
 	req, err := http.NewRequest(http.MethodPost, path_api_url+"token", strings.NewReader(url_encoded_query))
 
@@ -444,7 +445,8 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 		return "", fmt.Errorf("Cannot encode authentication message to JSON: %v", err)
 	}
 
-	fast_logger.Printf("Auth message: %v", string(auth_query_json))
+	// Do not print it as it has sensitive information
+	// fast_logger.Printf("Auth message: %v", string(auth_query_json))
 
 	req, err := http.NewRequest(http.MethodPost, f5_api_url+"sessions", bytes.NewReader(auth_query_json))
 
