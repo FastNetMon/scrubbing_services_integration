@@ -1,0 +1,5 @@
+{
+  "ip": "10.154.0.2",
+  "action": "ban",
+  "alert_scope": "host"  
+}
