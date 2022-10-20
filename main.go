@@ -159,6 +159,12 @@ func main() {
 
 		fast_logger.Printf("Successful auth with token: %v", auth_token)
 
+		if withdrawal {
+			fast_logger.Printf("Preparing to withdraw prefix: %v", network_cidr_prefix)
+		} else {
+			fast_logger.Printf("Preparing to announce prefix: %v", network_cidr_prefix)
+		}
+
 		err = f5_announce_route(auth_token, network_cidr_prefix, withdrawal)
 
 		if err != nil {
@@ -182,11 +188,16 @@ func main() {
 
 		fast_logger.Printf("Successful auth with token: %s", auth_token)
 
+		if withdrawal {
+			fast_logger.Printf("Preparing to withdraw prefix: %v", network_cidr_prefix)
+		} else {
+			fast_logger.Printf("Preparing to announce prefix: %v", network_cidr_prefix)
+		}
+
 		err = path_announce_route(auth_token, network_cidr_prefix, withdrawal)
 
 		if err != nil {
-			fast_logger.Printf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
-			// We do not stop here as we need to withdraw it even if something happened during withdrawal
+			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 		}
 	} else {
 		fast_logger.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
