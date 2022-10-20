@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/fastnetmon/fastnetmon-go"
 )
 
 type Configuration struct {
@@ -36,7 +39,7 @@ var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
 var path_api_url string = "https://api.path.net/"
 
 func main() {
-	conf := Configuration{}
+	conf := Configuration{Log_path: "/var/log/fastnetmon/fastnetmon_scrubbing_services_integration.log"}
 
 	configuration_file_path := "/etc/fastnetmon_scrubbing_services_integration.json"
 
@@ -50,6 +53,50 @@ func main() {
 
 	if err != nil {
 		fast_logger.Fatalf("Cannot decode configuration file %s: %v", configuration_file_path, err)
+	}
+
+	if conf.Log_path == "" {
+		fast_logger.Fatal("Please set non empty value for log_path")
+	}
+
+	log_file, err := os.OpenFile(conf.Log_path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+
+	if err != nil {
+		fast_logger.Fatalf("Cannot open log file: %v", err)
+	}
+
+	defer log_file.Close()
+
+	multi_writer := io.MultiWriter(os.Stdout, log_file)
+
+	fast_logger.SetOutput(multi_writer)
+
+	fast_logger.Printf("Prepared to read data from stdin")
+	stdin_data, err := ioutil.ReadAll(os.Stdin)
+
+	if err != nil {
+		fast_logger.Fatal("Cannot read data from stdin")
+	}
+
+	callback_data := fastnetmon.CallbackDetails{}
+
+	fast_logger.Printf("Callback raw data: %s", stdin_data)
+
+	err = json.Unmarshal([]byte(stdin_data), &callback_data)
+
+	if err != nil {
+		fast_logger.Printf("Raw data: %s", stdin_data)
+		fast_logger.Fatalf("Cannot unmarshal data: %v", err)
+	}
+
+	action := callback_data.Action
+
+	fast_logger.Printf("Action: %s", action)
+
+	fast_logger.Printf("Callback decoded data: %+v", callback_data)
+
+	if action != "ban" && action != "unban" {
+		fast_logger.Fatalf("Unknown action type: %s", action)
 	}
 
 	if conf.ProviderName == "f5" {
