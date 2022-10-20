@@ -8,11 +8,14 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
 
 type Configuration struct {
+	Log_path string `json:"log_path"`
+
 	// f5 or path
 	ProviderName  string `json:"provider_name"`
 	ExamplePrefix string `json:"example_prefix"`
@@ -26,6 +29,8 @@ type Configuration struct {
 	PathPassword string `json:"path_password"`
 }
 
+var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdFlags)
+
 var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
 
 var path_api_url string = "https://api.path.net/"
@@ -38,27 +43,27 @@ func main() {
 	conf_file_data, err := ioutil.ReadFile(configuration_file_path)
 
 	if err != nil {
-		log.Fatalf("Cannot open configuration file: %v", configuration_file_path)
+		fast_logger.Fatalf("Cannot open configuration file: %v", configuration_file_path)
 	}
 
 	err = json.Unmarshal([]byte(conf_file_data), &conf)
 
 	if err != nil {
-		log.Fatalf("Cannot decode configuration file %s: %v", configuration_file_path, err)
+		fast_logger.Fatalf("Cannot decode configuration file %s: %v", configuration_file_path, err)
 	}
 
 	if conf.ProviderName == "f5" {
 
 		if conf.F5Email == "" {
-			log.Fatal("Please set f5_email field in configuration")
+			fast_logger.Fatal("Please set f5_email field in configuration")
 		}
 
 		if conf.F5Password == "" {
-			log.Fatal("Please set f5_password field in configuration")
+			fast_logger.Fatal("Please set f5_password field in configuration")
 		}
 
 		if conf.ExamplePrefix == "" {
-			log.Fatal("Please set example_prefix in configuration")
+			fast_logger.Fatal("Please set example_prefix in configuration")
 		}
 
 		fake_auth := false
@@ -66,36 +71,36 @@ func main() {
 		auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
 
 		if err != nil {
-			log.Fatalf("Auth failed: %v", err)
+			fast_logger.Fatalf("Auth failed: %v", err)
 		}
 
-		log.Printf("Successful auth with token: %v", auth_token)
+		fast_logger.Printf("Successful auth with token: %v", auth_token)
 
 		err = f5_announce_route(auth_token, conf.ExamplePrefix, false)
 
 		if err != nil {
-			log.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
+			fast_logger.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
 			// We do not stop here as we need to withdraw it even if something happened during withdrawal
 		}
 
 		err = f5_announce_route(auth_token, conf.ExamplePrefix, true)
 
 		if err != nil {
-			log.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
+			fast_logger.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
 			// We do not stop here as we need to withdraw it even if something happened during withdrawal
 		}
 
 	} else if conf.ProviderName == "path" {
 		if conf.PathUsername == "" {
-			log.Fatal("Please set path_username field in configuration")
+			fast_logger.Fatal("Please set path_username field in configuration")
 		}
 
 		if conf.PathPassword == "" {
-			log.Fatal("Please set path_password field in configuration")
+			fast_logger.Fatal("Please set path_password field in configuration")
 		}
 
 		if conf.ExamplePrefix == "" {
-			log.Fatal("Please set example_prefix in configuration")
+			fast_logger.Fatal("Please set example_prefix in configuration")
 		}
 
 		fake_auth := false
@@ -103,27 +108,27 @@ func main() {
 		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword, fake_auth)
 
 		if err != nil {
-			log.Fatalf("Cannot auth: %v", err)
+			fast_logger.Fatalf("Cannot auth: %v", err)
 		}
 
-		log.Printf("Successful auth with token: %s", auth_token)
+		fast_logger.Printf("Successful auth with token: %s", auth_token)
 
 		err = path_announce_route(auth_token, conf.ExamplePrefix, false)
 
 		if err != nil {
-			log.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
+			fast_logger.Printf("Cannot announce prefix: %v with error: %v", conf.ExamplePrefix, err)
 			// We do not stop here as we need to withdraw it even if something happened during withdrawal
 		}
 
 		err = path_announce_route(auth_token, conf.ExamplePrefix, true)
 
 		if err != nil {
-			log.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
+			fast_logger.Printf("Cannot withdraw prefix: %v with error: %v", conf.ExamplePrefix, err)
 			// We do not stop here as we need to withdraw it even if something happened during withdrawal
 		}
 
 	} else {
-		log.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
+		fast_logger.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
 	}
 }
 
@@ -150,7 +155,7 @@ func f5_announce_route(auth_token string, prefix string, withdrawal bool) error 
 		return fmt.Errorf("Cannot encode prefix announce message to JSON: %v", err)
 	}
 
-	log.Printf("Prefix announce message: %v", string(prefix_announce_json))
+	fast_logger.Printf("Prefix announce message: %v", string(prefix_announce_json))
 
 	method := http.MethodPost
 
@@ -200,7 +205,7 @@ func f5_announce_route(auth_token string, prefix string, withdrawal bool) error 
 		*/
 
 		//
-		log.Printf("Successful prefix announce: %s", string(res_body))
+		fast_logger.Printf("Successful prefix announce: %s", string(res_body))
 
 		return nil
 	} else {
@@ -268,8 +273,8 @@ func path_announce_route(auth_token string, prefix string, withdrawal bool) erro
 		// In case of success their API response this way:
 		// {"acknowledged":true}
 
-		log.Printf("Successful announce response: %+v", res)
-		log.Printf("Successful announce response body: %v", string(res_body))
+		fast_logger.Printf("Successful announce response: %+v", res)
+		fast_logger.Printf("Successful announce response body: %v", string(res_body))
 
 		return nil
 	} else {
@@ -294,7 +299,7 @@ func path_auth(username string, password string, fake_auth bool) (string, error)
 
 	url_encoded_query := data.Encode()
 
-	log.Printf("Encoded query: %v", string(url_encoded_query))
+	fast_logger.Printf("Encoded query: %v", string(url_encoded_query))
 
 	req, err := http.NewRequest(http.MethodPost, path_api_url+"token", strings.NewReader(url_encoded_query))
 
@@ -339,8 +344,8 @@ func path_auth(username string, password string, fake_auth bool) (string, error)
 			return "", fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
-		log.Printf("Successful auth response: %+v", res)
-		log.Printf("Successful auth response body: %v", string(res_body))
+		fast_logger.Printf("Successful auth response: %+v", res)
+		fast_logger.Printf("Successful auth response body: %v", string(res_body))
 
 		err = json.Unmarshal(res_body, &authRes)
 
@@ -390,7 +395,7 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 		return "", fmt.Errorf("Cannot encode authentication message to JSON: %v", err)
 	}
 
-	log.Printf("Auth message: %v", string(auth_query_json))
+	fast_logger.Printf("Auth message: %v", string(auth_query_json))
 
 	req, err := http.NewRequest(http.MethodPost, f5_api_url+"sessions", bytes.NewReader(auth_query_json))
 
@@ -443,8 +448,8 @@ func f5_auth(email string, password string, fake_auth bool) (string, error) {
 			return "", fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
-		log.Printf("Successful auth response: %+v", res)
-		log.Printf("Successful auth response body: %v", string(res_body))
+		fast_logger.Printf("Successful auth response: %+v", res)
+		fast_logger.Printf("Successful auth response body: %v", string(res_body))
 
 		err = json.Unmarshal(res_body, &authRes)
 
