@@ -187,16 +187,44 @@ func f5_announce_route(auth_token string, prefix string, withdrawal bool) error 
 			return fmt.Errorf("Cannot read body for successful answer: %v", err)
 		}
 
+		// Successful announcement response:
+		/*
+			{"data":{"type":"routes","id":6612,"attributes":{"action":"announce","ttl":0,"nexthop":"172.16.98.6","subnet":"91.217.176.0/24","name":"17XXXXXXXXXXXXXXXXXXXXXXXXXXXXbb","created_at":"2022-10-18T11:58:54.756Z","comment":"Announced by FastNetMon Advanced"},"meta":{"message":"Your route has been queued for advertisement."}}}
+		*/
+
+		// Successful withdrawal response:
+		/*
+
+			{"data":{"type":"routes","id":6613,"attributes":{"action":"withdraw","ttl":0,"nexthop":"172.16.98.6","subnet":"91.217.176.0/24","name":"17XXXXXXXXXXXXXXXXXXXXXXXXXXXXbb","created_at":"2022-10-18T12:02:02.866Z","comment":"Withdrawing 91.217.176.0/24"},"meta":{"message":"Your route has been queued for withdrawal."}}}
+
+		*/
+
+		//
 		log.Printf("Successful prefix announce: %s", string(res_body))
 
 		return nil
 	} else {
 		// According to documentation it can be 400 and 401
-		// But in reality we observed 500
+		// But in reality we observed 500 and 403
 		// We ignore error as we OK with empty body
+
+		// Failed announce with code 403
+		/*
+
+			{ "error":"The requested prefix 91.217.176.0/24 is already being advertised by F5 Silverline. Please  reference the currently advertised prefixes in the Route Originate  section of the F5 Silverline Portal: https://portal.f5silverline.com or  use the API endpoint: GET /api/v1/routes/advertised" }
+
+		*/
+
+		// Failed withdrawal with code 403
+		/*
+
+			{"error":"The requested prefix 91.217.176.0/24 is not currently being advertised by F5 Silverline. Please reference the currently advertised prefixes in the Route Originate section of the F5 Silverline Portal: https://portal.f5silverline.com or use the API endpoint: GET  /api/v1/routes/advertised"}
+
+		*/
+
 		res_body, _ := ioutil.ReadAll(res.Body)
 
-		return fmt.Errorf("Auth failed with code %d. Body: %s", res.StatusCode, res_body)
+		return fmt.Errorf("Announce failed with code %d. Body: %s", res.StatusCode, res_body)
 	}
 
 }
