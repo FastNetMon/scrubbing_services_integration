@@ -36,6 +36,8 @@ type Configuration struct {
 
 	// Cloudflare credentials
 	CloudflareAPIToken string `json:"cloudflare_api_token"`
+
+	CloudflareAccountID string `json:"cloudflare_account_id"`
 }
 
 var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdFlags)
@@ -214,6 +216,10 @@ func main() {
 			fast_logger.Fatal("Please set cloudflare_api_token field in configuration")
 		}
 
+		if conf.CloudflareAccountID == "" {
+			fast_logger.Fatal("Please set cloudflare_account_id field in configuration")
+		}
+
 		// We support only scoped API token which does not need email
 		cloudflare_api, err := cloudflare.NewWithAPIToken(conf.CloudflareAPIToken)
 
@@ -231,7 +237,7 @@ func main() {
 			fast_logger.Fatalf("Cannot check API token: %v", err)
 		}
 
-		log.Fatalf("Cloudflare is not implemented but we got username: %+v", user_information)
+		log.Fatalf("Successfully verified token: %+v", user_information)
 	} else {
 		fast_logger.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
 	}
