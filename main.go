@@ -38,6 +38,14 @@ type Configuration struct {
 	CloudflareAPIToken string `json:"cloudflare_api_token"`
 
 	CloudflareAccountID string `json:"cloudflare_account_id"`
+
+	CloudflareNextHop string `json:"cloudflare_next_hop"`
+
+	// zero by default
+	CloudflarePriority int `json:"cloudflare_priority"`
+
+	// Zero by default
+	CloudflareWeight int `json:"cloudflare_weight"`
 }
 
 var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdFlags)
@@ -220,6 +228,10 @@ func main() {
 			fast_logger.Fatal("Please set cloudflare_account_id field in configuration")
 		}
 
+		if conf.CloudflareNextHop == "" {
+			fast_logger.Fatal("Please set cloudflare_next_hop field in configuration")
+		}
+
 		// We support only scoped API token which does not need email
 		cloudflare_api, err := cloudflare.NewWithAPIToken(conf.CloudflareAPIToken)
 
@@ -266,7 +278,7 @@ func main() {
 				fast_logger.Fatalf("Failed to remove static announce: %s", err)
 			}
 
-			log.Printf("Successfully removed static announce")
+			fast_logger.Printf("Successfully removed static announce")
 		} else {
 			// Announce
 			if static_route_id != "" {
@@ -274,7 +286,30 @@ func main() {
 				os.Exit(0)
 			}
 
+			static_route := cloudflare.MagicTransitStaticRoute{
+				Prefix:      network_cidr_prefix,
+				Description: "FastNetMon Advanced announce for prefix " + network_cidr_prefix,
+				Nexthop:     conf.CloudflareNextHop,
+			}
+
+			if conf.CloudflarePriority != 0 {
+				static_route.Priority = conf.CloudflarePriority
+			}
+
+			if conf.CloudflareWeight != 0 {
+				static_route.Weight = conf.CloudflareWeight
+			}
+
+			fast_logger.Printf("Prepared announce: %+v", static_route)
+
 			// Do announce
+			_, err := cloudflare_api.CreateMagicTransitStaticRoute(ctx, conf.CloudflareAccountID, static_route)
+
+			if err != nil {
+				fast_logger.Fatalf("Cannot create route: %v", err)
+			}
+
+			fast_logger.Printf("Successfully created route")
 		}
 
 	} else {
