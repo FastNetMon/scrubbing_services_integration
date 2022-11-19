@@ -223,11 +223,12 @@ func main() {
 
 		ctx := context.Background()
 
-		// Fetch user details on the account
-		user_information, err := cloudflare_api.UserDetails(ctx)
+		// Verify token for correctness
+		// It's not 100% required but I think it's good point to have it
+		user_information, err := cloudflare_api.VerifyAPIToken(ctx)
 
 		if err != nil {
-			fast_logger.Fatalf("Cannot get user information")
+			fast_logger.Fatalf("Cannot check API token: %v", err)
 		}
 
 		log.Fatalf("Cloudflare is not implemented but we got username: %+v", user_information)
