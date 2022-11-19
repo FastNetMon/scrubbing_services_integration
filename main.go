@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,13 +15,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudflare/cloudflare-go"
+
 	"github.com/fastnetmon/fastnetmon-go"
 )
 
 type Configuration struct {
 	Log_path string `json:"log_path"`
 
-	// f5 or path
+	// f5 or path or cloudflare
 	ProviderName string `json:"provider_name"`
 
 	// F5 Silverline credentials
@@ -30,6 +33,9 @@ type Configuration struct {
 	// Path credentials
 	PathUsername string `json:"path_username"`
 	PathPassword string `json:"path_password"`
+
+	// Cloudflare credentials
+	CloudflareAPIToken string `json:"cloudflare_api_token"`
 }
 
 var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdFlags)
@@ -203,6 +209,28 @@ func main() {
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 		}
+	} else if conf.ProviderName == "cloudflare" {
+		if conf.CloudflareAPIToken == "" {
+			fast_logger.Fatal("Please set cloudflare_api_token field in configuration")
+		}
+
+		// We support only scoped API token which does not need email
+		cloudflare_api, err := cloudflare.NewWithAPIToken(conf.CloudflareAPIToken)
+
+		if err != nil {
+			fast_logger.Fatalf("Cannot create Cloudflare API client: %v", err)
+		}
+
+		ctx := context.Background()
+
+		// Fetch user details on the account
+		user_information, err := cloudflare_api.UserDetails(ctx)
+
+		if err != nil {
+			fast_logger.Fatalf("Cannot get user information")
+		}
+
+		log.Fatalf("Cloudflare is not implemented but we got username: %+v", user_information)
 	} else {
 		fast_logger.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
 	}
