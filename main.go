@@ -237,10 +237,64 @@ func main() {
 			fast_logger.Fatalf("Cannot check API token: %v", err)
 		}
 
-		log.Fatalf("Successfully verified token: %+v", user_information)
+		fast_logger.Printf("Successfully verified token: %+v", user_information)
+
+		fast_logger.Printf("Getting list of static Magic Transit Routes")
+
+		magic_transit_tunnels, err := cloudflare_api.ListMagicTransitStaticRoutes(ctx, conf.CloudflareAccountID)
+
+		if err != nil {
+			fast_logger.Fatalf("Cannot get Magic Transit tunnels: %v", err)
+		}
+
+		fast_logger.Printf("Successfully got %d tunnels from Cloudflare", len(magic_transit_tunnels))
+
+		// Lookup static route id as it may exist
+		static_route_id := find_magic_transit_route_by_prefix(magic_transit_tunnels, network_cidr_prefix)
+
+		if withdrawal {
+			// Announce withdrawal
+			if static_route_id == "" {
+				fast_logger.Fatalf("I cannot find any active announces for prefix: %s", network_cidr_prefix)
+			}
+
+			fast_logger.Printf("Preparing to withdraw static announce with id %s", static_route_id)
+
+			_, err := cloudflare_api.DeleteMagicTransitStaticRoute(ctx, conf.CloudflareAccountID, static_route_id)
+
+			if err != nil {
+				fast_logger.Fatalf("Failed to remove static announce: %s", err)
+			}
+
+			log.Printf("Successfully removed static announce")
+		} else {
+			// Announce
+			if static_route_id != "" {
+				fast_logger.Printf("Prefix is already active with ID: %s Skip announce", static_route_id)
+				os.Exit(0)
+			}
+
+			// Do announce
+		}
+
 	} else {
 		fast_logger.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
 	}
+}
+
+// Returns id of prefix when found or empty string otherwise
+func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitStaticRoute, prefix string) string {
+	if len(static_routes) == 0 {
+		return ""
+	}
+
+	for _, route := range static_routes {
+		if route.Prefix == prefix {
+			return route.ID
+		}
+	}
+
+	return ""
 }
 
 // Announce route
