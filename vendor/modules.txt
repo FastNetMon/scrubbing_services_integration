@@ -16,11 +16,11 @@ github.com/hashicorp/go-retryablehttp
 # github.com/levigross/grequests v0.0.0-20190908174114-253788527a1a
 ## explicit
 github.com/levigross/grequests
-# golang.org/x/net v0.0.0-20220722155237-a158d28d115b
+# golang.org/x/net v0.7.0
 ## explicit; go 1.17
 golang.org/x/net/idna
 golang.org/x/net/publicsuffix
-# golang.org/x/text v0.3.7
+# golang.org/x/text v0.7.0
 ## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
