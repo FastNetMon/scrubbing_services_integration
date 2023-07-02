@@ -384,12 +384,16 @@ func f5_volterra_announce_route(prefix string, withdrawal bool) error {
 	method := http.MethodPost
 	url_path := "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements"
 
-	anouncement_name := "testrouteadv"
+	// Convert 10.0.0.0/24 to 10_0_0_0_24 to make proper name without special symbols
+	prefix_for_name := strings.ReplaceAll(prefix, ".", "_")
+	prefix_for_name = strings.ReplaceAll(prefix_for_name, "/", "_")
+
+	anouncement_name := "fastnetmon_" + prefix_for_name
 
 	if withdrawal {
 		method = http.MethodDelete
 
-		// We need
+		// We need to specify announcement name
 		url_path = "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements/" + anouncement_name
 	}
 
