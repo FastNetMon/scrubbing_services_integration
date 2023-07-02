@@ -390,13 +390,6 @@ func f5_volterra_announce_route(prefix string, withdrawal bool) error {
 
 	anouncement_name := "fastnetmon_" + prefix_for_name
 
-	if withdrawal {
-		method = http.MethodDelete
-
-		// We need to specify announcement name
-		url_path = "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements/" + anouncement_name
-	}
-
 	// {"namespace":"system", "metadata":{"name":"testrouteadv", "description":"testrouteadv","disable":false}, "spec":{"prefix":"206.130.12.0/24", "expiration_never":{},"activation_announce":{} }}
 	prefix_announce_query := map[string]interface{}{
 		"namespace": "system",
@@ -410,6 +403,16 @@ func f5_volterra_announce_route(prefix string, withdrawal bool) error {
 			"expiration_never":    map[string]interface{}{},
 			"activation_announce": map[string]interface{}{},
 		},
+	}
+
+	if withdrawal {
+		method = http.MethodDelete
+
+		// We need to specify announcement name
+		url_path = "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements/" + anouncement_name
+
+		// Just empty query body
+		prefix_announce_query = map[string]interface{}{}
 	}
 
 	prefix_announce_json, err := json.Marshal(prefix_announce_query)
