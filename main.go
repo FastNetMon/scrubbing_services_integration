@@ -383,7 +383,7 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
    [legacy_sect]
    activate = 1
 */
-// Then convert key formats:
+// As alternative to using their P12 certificates we can convert P12 to PEM as they're easier to operate from Go
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -clcerts -nokeys -out usercert.pem
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -nocerts -out userkey.pem -nodes
 func f5_volterra_announce_route(certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
