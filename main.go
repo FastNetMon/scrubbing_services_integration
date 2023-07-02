@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -390,8 +391,31 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 
 	if p12_certificate_path != "" {
 
-		// Decode P12
+		p12_data, err := ioutil.ReadFile(p12_certificate_path)
 
+		if err != nil {
+			return fmt.Errorf("Cannot read P12 certificate %s: %v", p12_certificate_path, err)
+		}
+
+		// Be careful with order of return values
+		// We tried using Decode method from golang.org/x/crypto/pkcs12 but it returns: pkcs12: expected exactly two safe bags in the PFX PDU
+		// https://github.com/RobotsAndPencils/buford/issues/8
+		// https://github.com/golang/go/issues/14015
+		// That's why we switched to github.com/SSLMate/go-pkcs12
+		key, cert, _, err := DecodeChain.DecodeChain(p12_data, p12_certificate_password)
+
+		if err != nil {
+			return fmt.Errorf("Cannot open P12 using provided password: %v", err)
+		}
+
+		// TODO: for testing loading logic
+		cert1 := tls.Certificate{
+			Certificate: [][]byte{cert.Raw},
+			PrivateKey:  key.(crypto.PrivateKey),
+			Leaf:        cert,
+		}
+
+		_ = cert1
 	} else {
 
 		// Load authentication certificates
