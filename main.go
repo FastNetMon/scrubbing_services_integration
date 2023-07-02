@@ -31,6 +31,10 @@ type Configuration struct {
 	F5Email    string `json:"f5_email"`
 	F5Password string `json:"f5_password"`
 
+	// F5 Volterra credentials
+	F5CertificatePath    string `json:"f5_certificate_path"`
+	F5CertificateKeyPath string `json:"f5_certificate_key_path"`
+
 	// Path credentials
 	PathUsername string `json:"path_username"`
 	PathPassword string `json:"path_password"`
@@ -195,7 +199,15 @@ func main() {
 		}
 
 	} else if conf.ProviderName == "f5_volterra" {
-		err = f5_volterra_announce_route(network_cidr_prefix, withdrawal)
+		if conf.F5CertificatePath == "" {
+			fast_logger.Fatal("Please set f5_certificate_path field in configuration")
+		}
+
+		if conf.F5CertificateKeyPath == "" {
+			fast_logger.Fatal("Please set f5_certificate_key_path field in configuration")
+		}
+
+		err = f5_volterra_announce_route(conf.F5CertificatePath, conf.F5CertificateKeyPath, network_cidr_prefix, withdrawal)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
@@ -361,9 +373,9 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 // Then convert key formats:
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -clcerts -nokeys -out usercert.pem
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -nocerts -out userkey.pem -nodes
-func f5_volterra_announce_route(prefix string, withdrawal bool) error {
-	//
-	cert, err := tls.LoadX509KeyPair("/home/pavel/usercert.pem", "/home/pavel/userkey.pem")
+func f5_volterra_announce_route(certificate_path string, certificate_key_path string, prefix string, withdrawal bool) error {
+	// Load authentication certificates
+	cert, err := tls.LoadX509KeyPair(certificate_path, certificate_key_path)
 
 	if err != nil {
 		return fmt.Errorf("Cannot load certificates: %v", err)

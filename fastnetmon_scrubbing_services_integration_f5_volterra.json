@@ -1,0 +1,5 @@
+{
+    "provider_name": "f5_volterra",
+    "f5_certificate_path":"/home/pavel/usercert.pem",
+    "f5_certificate_key_path": "/home/pavel/userkey.pem"
+}
