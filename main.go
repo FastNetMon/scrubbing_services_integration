@@ -393,10 +393,30 @@ func f5_volterra_announce_route(prefix string, withdrawal bool) error {
 		url_path = "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements/" + anouncement_name
 	}
 
-	// TODO: Make it structure
-	json_query := `'{"namespace":"system", "metadata":{"name":"testrouteadv", "description":"testrouteadv","disable":false}, "spec":{"prefix":"206.130.12.0/24", "expiration_never":{},"activation_announce":{} }}' `
+	// {"namespace":"system", "metadata":{"name":"testrouteadv", "description":"testrouteadv","disable":false}, "spec":{"prefix":"206.130.12.0/24", "expiration_never":{},"activation_announce":{} }}
+	prefix_announce_query := map[string]interface{}{
+		"namespace": "system",
+		"metadata": map[string]interface{}{
+			"name":        anouncement_name,
+			"description": anouncement_name,
+			"disable":     false,
+		},
+		"spec": map[string]interface{}{
+			"prefix":              prefix,
+			"expiration_never":    map[string]interface{}{},
+			"activation_announce": map[string]interface{}{},
+		},
+	}
 
-	req, err := http.NewRequest(method, f5_volterra_api_url+url_path, bytes.NewReader([]byte(json_query)))
+	prefix_announce_json, err := json.Marshal(prefix_announce_query)
+
+	if err != nil {
+		return fmt.Errorf("Cannot encode prefix announce message to JSON: %v", err)
+	}
+
+	fast_logger.Printf("Prefix announce message: %v", string(prefix_announce_json))
+
+	req, err := http.NewRequest(method, f5_volterra_api_url+url_path, bytes.NewReader(prefix_announce_json))
 
 	if err != nil {
 		return fmt.Errorf("Cannot create request: %v", err)
