@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ import (
 type Configuration struct {
 	Log_path string `json:"log_path"`
 
-	// f5 or path or cloudflare
+	// f5, f5_volterra or path or cloudflare
 	ProviderName string `json:"provider_name"`
 
 	// F5 Silverline credentials
@@ -51,6 +52,8 @@ type Configuration struct {
 var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdFlags)
 
 var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
+
+var f5_volterra_api_url string = "https://f5-neteng.console.ves.volterra.io"
 
 var path_api_url string = "https://api.path.net/"
 
@@ -186,6 +189,13 @@ func main() {
 		}
 
 		err = f5_announce_route(auth_token, network_cidr_prefix, withdrawal)
+
+		if err != nil {
+			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
+		}
+
+	} else if conf.ProviderName == "f5_volterra" {
+		err = f5_volterra_announce_route(network_cidr_prefix, withdrawal)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
@@ -330,6 +340,82 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 	}
 
 	return ""
+}
+
+// Announce route for Volterra
+// On RHEL9 or Ubuntu 22.04 with legacy certificates enabled in /etc/ssl/openssl.cnf
+/*
+   [provider_sect]
+   default = default_sect
+
+   # Uncommented
+   legacy = legacy_sect
+   # Uncommented
+   [default_sect]
+   activate = 1
+
+   # Uncommented
+   [legacy_sect]
+   activate = 1
+*/
+// Then convert key formats:
+// openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -clcerts -nokeys -out usercert.pem
+// openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -nocerts -out userkey.pem -nodes
+func f5_volterra_announce_route(prefix string, withdrawal bool) error {
+	//
+	cert, err := tls.LoadX509KeyPair("/home/pavel/usercert.pem", "/home/pavel/userkey.pem")
+
+	if err != nil {
+		return fmt.Errorf("Cannot load certificates: %v", err)
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		},
+	}
+
+	// Set reasonable timeout
+	http_client := &http.Client{
+		Transport: tr,
+		Timeout:   time.Second * 60,
+	}
+
+	method := http.MethodPost
+	url_path := "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements"
+
+	anouncement_name := "testrouteadv"
+
+	if withdrawal {
+		method = http.MethodDelete
+
+		// We need
+		url_path = "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements/" + anouncement_name
+	}
+
+	// TODO: Make it structure
+	json_query := `'{"namespace":"system", "metadata":{"name":"testrouteadv", "description":"testrouteadv","disable":false}, "spec":{"prefix":"206.130.12.0/24", "expiration_never":{},"activation_announce":{} }}' `
+
+	req, err := http.NewRequest(method, f5_volterra_api_url+url_path, bytes.NewReader([]byte(json_query)))
+
+	if err != nil {
+		return fmt.Errorf("Cannot create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("cache-control", "no-cache")
+
+	res, err := http_client.Do(req)
+
+	if err != nil {
+		return fmt.Errorf("Cannot make POST query: %v", err)
+	}
+
+	fast_logger.Printf("Volterra response: %+v", res)
+
+	// TODO: add logic to check correctness of return code
+
+	return nil
 }
 
 // Announce route
