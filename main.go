@@ -450,6 +450,9 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 
 	anouncement_name := "fastnetmon_" + prefix_for_name
 
+	// Testing value
+	// anouncement_name = "testrouteadv"
+
 	// {"namespace":"system", "metadata":{"name":"testrouteadv", "description":"testrouteadv","disable":false}, "spec":{"prefix":"206.130.12.0/24", "expiration_never":{},"activation_announce":{} }}
 	prefix_announce_query := map[string]interface{}{
 		"namespace": "system",
@@ -498,11 +501,25 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 		return fmt.Errorf("Cannot make POST query: %v", err)
 	}
 
-	if res.StatusCode == 400 {
-		return fmt.Errorf("API returned code 400: %+v", res)
-	}
+	response_body_raw, _ := ioutil.ReadAll(res.Body)
 
-	// TODO: add logic to validate correct response codes
+	response_body := string(response_body_raw)
+
+	if res.StatusCode == 400 {
+		return fmt.Errorf("API returned code 400: %+v Response: %s", res, response_body)
+	} else if res.StatusCode == 404 {
+		if withdrawal {
+			// We knot it happens when we try to withdraw announce which does not exist
+			return fmt.Errorf("404 response code, advertisement may not exists. Response: %s", response_body)
+		} else {
+			return fmt.Errorf("404 response code. Response: %s", response_body)
+		}
+	} else if res.StatusCode == 403 {
+		// May be returned when we have no permissions for prefix
+		return fmt.Errorf("403 response, access forbidden. Response: %s", response_body)
+	} else {
+		return fmt.Errorf("Unknown response code. Response body: %v Response code: %d", string(response_body), res.StatusCode)
+	}
 
 	return nil
 }
