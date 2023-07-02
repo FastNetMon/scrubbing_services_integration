@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	"software.sslmate.com/src/go-pkcs12"
 
 	"github.com/fastnetmon/fastnetmon-go"
 )
@@ -386,8 +387,9 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -clcerts -nokeys -out usercert.pem
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -nocerts -out userkey.pem -nodes
 func f5_volterra_announce_route(certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
-	var cert tls.Certificate
 	var err error
+
+	tls_client_config := &tls.Config{}
 
 	if p12_certificate_path != "" {
 
@@ -402,35 +404,35 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 		// https://github.com/RobotsAndPencils/buford/issues/8
 		// https://github.com/golang/go/issues/14015
 		// That's why we switched to github.com/SSLMate/go-pkcs12
-		key, cert, _, err := DecodeChain.DecodeChain(p12_data, p12_certificate_password)
+		key, cert, _, err := pkcs12.DecodeChain(p12_data, p12_certificate_password)
 
 		if err != nil {
 			return fmt.Errorf("Cannot open P12 using provided password: %v", err)
 		}
 
-		// TODO: for testing loading logic
-		cert1 := tls.Certificate{
+		log.Printf("Successfully extracted P12 certificates")
+
+		tls_cert := tls.Certificate{
 			Certificate: [][]byte{cert.Raw},
 			PrivateKey:  key.(crypto.PrivateKey),
 			Leaf:        cert,
 		}
 
-		_ = cert1
+		tls_client_config.Certificates = []tls.Certificate{tls_cert}
 	} else {
 
 		// Load authentication certificates
-		cert, err = tls.LoadX509KeyPair(certificate_path, certificate_key_path)
+		cert, err := tls.LoadX509KeyPair(certificate_path, certificate_key_path)
 
 		if err != nil {
 			return fmt.Errorf("Cannot load certificates: %v", err)
 		}
 
+		tls_client_config.Certificates = []tls.Certificate{cert}
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		},
+		TLSClientConfig: tls_client_config,
 	}
 
 	// Set reasonable timeout
