@@ -16,11 +16,14 @@ github.com/hashicorp/go-retryablehttp
 # github.com/levigross/grequests v0.0.0-20190908174114-253788527a1a
 ## explicit
 github.com/levigross/grequests
-# golang.org/x/net v0.7.0
+# golang.org/x/crypto v0.10.0
+## explicit; go 1.17
+golang.org/x/crypto/pbkdf2
+# golang.org/x/net v0.10.0
 ## explicit; go 1.17
 golang.org/x/net/idna
 golang.org/x/net/publicsuffix
-# golang.org/x/text v0.7.0
+# golang.org/x/text v0.10.0
 ## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
@@ -29,3 +32,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 ## explicit
 golang.org/x/time/rate
+# software.sslmate.com/src/go-pkcs12 v0.2.0
+## explicit; go 1.15
+software.sslmate.com/src/go-pkcs12
+software.sslmate.com/src/go-pkcs12/internal/rc2
