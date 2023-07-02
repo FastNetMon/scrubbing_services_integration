@@ -32,8 +32,12 @@ type Configuration struct {
 	F5Password string `json:"f5_password"`
 
 	// F5 Volterra credentials
-	F5CertificatePath    string `json:"f5_certificate_path"`
-	F5CertificateKeyPath string `json:"f5_certificate_key_path"`
+	F5PemCertificatePath    string `json:"f5_pem_certificate_path"`
+	F5PemCertificateKeyPath string `json:"f5_pem_certificate_key_path"`
+
+	// Their original format
+	F5P12CertificatePath     string `json:"f5_p12_certificate_path"`
+	F5P12CertificatePassword string `json:"f5_p12_certificate_password"`
 
 	// Path credentials
 	PathUsername string `json:"path_username"`
@@ -199,15 +203,22 @@ func main() {
 		}
 
 	} else if conf.ProviderName == "f5_volterra" {
-		if conf.F5CertificatePath == "" {
-			fast_logger.Fatal("Please set f5_certificate_path field in configuration")
+		if conf.F5P12CertificatePath == "" {
+
+			if conf.F5PemCertificatePath == "" {
+				fast_logger.Fatal("Please set f5_certificate_path field in configuration")
+			}
+
+			if conf.F5PemCertificateKeyPath == "" {
+				fast_logger.Fatal("Please set f5_certificate_key_path field in configuration")
+			}
+
+			// All fine
+		} else {
+			// P12 certificate specified
 		}
 
-		if conf.F5CertificateKeyPath == "" {
-			fast_logger.Fatal("Please set f5_certificate_key_path field in configuration")
-		}
-
-		err = f5_volterra_announce_route(conf.F5CertificatePath, conf.F5CertificateKeyPath, network_cidr_prefix, withdrawal)
+		err = f5_volterra_announce_route(conf.F5PemCertificatePath, conf.F5PemCertificateKeyPath, conf.F5P12CertificatePath, conf.F5P12CertificatePassword, network_cidr_prefix, withdrawal)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
@@ -373,12 +384,23 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 // Then convert key formats:
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -clcerts -nokeys -out usercert.pem
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -nocerts -out userkey.pem -nodes
-func f5_volterra_announce_route(certificate_path string, certificate_key_path string, prefix string, withdrawal bool) error {
-	// Load authentication certificates
-	cert, err := tls.LoadX509KeyPair(certificate_path, certificate_key_path)
+func f5_volterra_announce_route(certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
+	var cert tls.Certificate
+	var err error
 
-	if err != nil {
-		return fmt.Errorf("Cannot load certificates: %v", err)
+	if p12_certificate_path != "" {
+
+		// Decode P12
+
+	} else {
+
+		// Load authentication certificates
+		cert, err = tls.LoadX509KeyPair(certificate_path, certificate_key_path)
+
+		if err != nil {
+			return fmt.Errorf("Cannot load certificates: %v", err)
+		}
+
 	}
 
 	tr := &http.Transport{
@@ -450,9 +472,11 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 		return fmt.Errorf("Cannot make POST query: %v", err)
 	}
 
-	fast_logger.Printf("Volterra response: %+v", res)
+	if res.StatusCode == 400 {
+		return fmt.Errorf("API returned code 400: %+v", res)
+	}
 
-	// TODO: add logic to check correctness of return code
+	// TODO: add logic to validate correct response codes
 
 	return nil
 }
