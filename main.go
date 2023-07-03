@@ -445,10 +445,14 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 	url_path := "/api/infraprotect/namespaces/system/infraprotect_internet_prefix_advertisements"
 
 	// Convert 10.0.0.0/24 to 10_0_0_0_24 to make proper name without special symbols
-	prefix_for_name := strings.ReplaceAll(prefix, ".", "_")
-	prefix_for_name = strings.ReplaceAll(prefix_for_name, "/", "_")
+	// F5 API does not allow underscores:
+	// label requirements: a DNS-1035 label must consist of lower case alphanumeric characters or '-',
+	// start with an alphabetic character, and end with an alphanumeric character
+	// Name should be less than 64 characters with a pattern of [a-z]([-a-z0-9]*[a-z0-9])? [DNS1035 Label]"}
+	prefix_for_name := strings.ReplaceAll(prefix, ".", "-")
+	prefix_for_name = strings.ReplaceAll(prefix_for_name, "/", "-")
 
-	anouncement_name := "fastnetmon_" + prefix_for_name
+	anouncement_name := "fastnetmon-" + prefix_for_name
 
 	// Testing value
 	// anouncement_name = "testrouteadv"
@@ -507,20 +511,79 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 
 	response_body := string(response_body_raw)
 
-	if res.StatusCode == 400 {
-		return fmt.Errorf("API returned code 400: %+v Response: %s", res, response_body)
-	} else if res.StatusCode == 404 {
-		if withdrawal {
-			// We knot it happens when we try to withdraw announce which does not exist
+	// Different response codes depend on announce or withdrawal
+	if withdrawal {
+
+		if res.StatusCode == 400 {
+			return fmt.Errorf("API returned code 400: %+v Response: %s", res, response_body)
+		} else if res.StatusCode == 403 {
+			// May be returned when we have no permissions for prefix
+			return fmt.Errorf("403 response, access forbidden. Response: %s", response_body)
+		} else if res.StatusCode == 404 {
+			// We know it happens when we try to withdraw announce which does not exist
 			return fmt.Errorf("404 response code, advertisement may not exists. Response: %s", response_body)
+		} else if res.StatusCode == 200 {
+			// It returns empty JSON document in this case
+			// It mean successful withdrawal
+			return nil
 		} else {
-			return fmt.Errorf("404 response code. Response: %s", response_body)
+			return fmt.Errorf("Unknown response code. Response body: %v Response code: %d", string(response_body), res.StatusCode)
 		}
-	} else if res.StatusCode == 403 {
-		// May be returned when we have no permissions for prefix
-		return fmt.Errorf("403 response, access forbidden. Response: %s", response_body)
+
 	} else {
-		return fmt.Errorf("Unknown response code. Response body: %v Response code: %d", string(response_body), res.StatusCode)
+		if res.StatusCode == 400 {
+			return fmt.Errorf("API returned code 400: %+v Response: %s", res, response_body)
+		} else if res.StatusCode == 403 {
+			// May be returned when we have no permissions for prefix
+			return fmt.Errorf("403 response, access forbidden. Response: %s", response_body)
+		} else if res.StatusCode == 409 {
+			return fmt.Errorf("409, conflict, apparently announce is active already. Response: %s", response_body)
+		} else if res.StatusCode == 200 {
+			// For announcement 200 means successful announce
+
+			/*
+			   {
+			     "metadata": {
+			       "name": "fastnetmon-206-130-12-0-24",
+			       "namespace": "system",
+			       "labels": {
+			       },
+			       "annotations": {
+			       },
+			       "description": "fastnetmon-206-130-12-0-24",
+			       "disable": false
+			     },
+			     "system_metadata": {
+			       "uid": "0a168085-1a74-4fbe-bde1-65aff07d1dfd",
+			       "creation_timestamp": "2023-07-03T17:03:48.212594070Z",
+			       "deletion_timestamp": null,
+			       "modification_timestamp": null,
+			       "initializers": null,
+			       "finalizers": [
+			       ],
+			       "tenant": "f5-neteng-foymhriv",
+			       "creator_class": "prism",
+			       "creator_id": "ta2-neteng-system-admin-hcggqodh@volterracredentials.io",
+			       "object_index": 0,
+			       "owner_view": null,
+			       "labels": {
+			       }
+			     },
+			     "spec": {
+			       "prefix": "206.130.12.0/24",
+			       "expiration_never": {
+
+			       },
+			       "activation_announce": {
+
+			       }
+			     }
+			   }
+			*/
+
+		} else {
+			return fmt.Errorf("Unknown response code. Response body: %v Response code: %d", string(response_body), res.StatusCode)
+		}
 	}
 
 	return nil
