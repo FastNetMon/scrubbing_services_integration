@@ -511,15 +511,18 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 
 	response_body := string(response_body_raw)
 
-	// Different response codes depend on announce or withdrawal
+	// Some error codes are common and we handle them here
+	if res.StatusCode == 400 {
+		return fmt.Errorf("API returned code 400: %+v Response: %s", res, response_body)
+	} else if res.StatusCode == 403 {
+		// May be returned when we have no permissions for prefix
+		return fmt.Errorf("403 response, access forbidden. Response: %s", response_body)
+	}
+
+	// Other response codes depend on announce or withdrawal
 	if withdrawal {
 
-		if res.StatusCode == 400 {
-			return fmt.Errorf("API returned code 400: %+v Response: %s", res, response_body)
-		} else if res.StatusCode == 403 {
-			// May be returned when we have no permissions for prefix
-			return fmt.Errorf("403 response, access forbidden. Response: %s", response_body)
-		} else if res.StatusCode == 404 {
+		if res.StatusCode == 404 {
 			// We know it happens when we try to withdraw announce which does not exist
 			return fmt.Errorf("404 response code, advertisement may not exists. Response: %s", response_body)
 		} else if res.StatusCode == 200 {
@@ -531,12 +534,7 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 		}
 
 	} else {
-		if res.StatusCode == 400 {
-			return fmt.Errorf("API returned code 400: %+v Response: %s", res, response_body)
-		} else if res.StatusCode == 403 {
-			// May be returned when we have no permissions for prefix
-			return fmt.Errorf("403 response, access forbidden. Response: %s", response_body)
-		} else if res.StatusCode == 409 {
+		if res.StatusCode == 409 {
 			return fmt.Errorf("409, conflict, apparently announce is active already. Response: %s", response_body)
 		} else if res.StatusCode == 200 {
 			// For announcement 200 means successful announce
