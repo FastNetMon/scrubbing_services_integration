@@ -486,6 +486,8 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 
 	fast_logger.Printf("Prefix announce message: %v", string(prefix_announce_json))
 
+	fast_logger.Printf("Sending query to URL: %s", f5_volterra_api_url+url_path)
+
 	req, err := http.NewRequest(method, f5_volterra_api_url+url_path, bytes.NewReader(prefix_announce_json))
 
 	if err != nil {
