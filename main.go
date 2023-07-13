@@ -26,14 +26,14 @@ import (
 type Configuration struct {
 	Log_path string `json:"log_path"`
 
-	// f5, f5_volterra or path or cloudflare
+	// f5, f5_xc or path or cloudflare
 	ProviderName string `json:"provider_name"`
 
 	// F5 Silverline credentials
 	F5Email    string `json:"f5_email"`
 	F5Password string `json:"f5_password"`
 
-	// F5 Volterra credentials
+	// F5 XC credentials
 	F5PemCertificatePath    string `json:"f5_pem_certificate_path"`
 	F5PemCertificateKeyPath string `json:"f5_pem_certificate_key_path"`
 
@@ -63,7 +63,7 @@ var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdF
 
 var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
 
-var f5_volterra_api_url string = "https://f5-neteng.console.ves.volterra.io"
+var f5_xc_api_url string = "https://f5-neteng.console.ves.volterra.io"
 
 var path_api_url string = "https://api.path.net/"
 
@@ -204,7 +204,7 @@ func main() {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 		}
 
-	} else if conf.ProviderName == "f5_volterra" {
+	} else if conf.ProviderName == "f5_xc" {
 		if conf.F5P12CertificatePath == "" {
 
 			if conf.F5PemCertificatePath == "" {
@@ -220,7 +220,7 @@ func main() {
 			// P12 certificate specified
 		}
 
-		err = f5_volterra_announce_route(conf.F5PemCertificatePath, conf.F5PemCertificateKeyPath, conf.F5P12CertificatePath, conf.F5P12CertificatePassword, network_cidr_prefix, withdrawal)
+		err = f5_xc_announce_route(conf.F5PemCertificatePath, conf.F5PemCertificateKeyPath, conf.F5P12CertificatePath, conf.F5P12CertificatePassword, network_cidr_prefix, withdrawal)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
@@ -367,7 +367,7 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 	return ""
 }
 
-// Announce route for Volterra
+// Announce route for F5 XC
 // On RHEL9 or Ubuntu 22.04 with legacy certificates enabled in /etc/ssl/openssl.cnf
 /*
    [provider_sect]
@@ -386,7 +386,7 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 // As alternative to using their P12 certificates we can convert P12 to PEM as they're easier to operate from Go
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -clcerts -nokeys -out usercert.pem
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -nocerts -out userkey.pem -nodes
-func f5_volterra_announce_route(certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
+func f5_xc_announce_route(certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
 	var err error
 
 	tls_client_config := &tls.Config{}
@@ -490,9 +490,9 @@ func f5_volterra_announce_route(certificate_path string, certificate_key_path st
 
 	fast_logger.Printf("Prefix announce message: %v", string(prefix_announce_json))
 
-	fast_logger.Printf("Sending query to URL: %s", f5_volterra_api_url+url_path)
+	fast_logger.Printf("Sending query to URL: %s", f5_xc_api_url+url_path)
 
-	req, err := http.NewRequest(method, f5_volterra_api_url+url_path, bytes.NewReader(prefix_announce_json))
+	req, err := http.NewRequest(method, f5_xc_api_url+url_path, bytes.NewReader(prefix_announce_json))
 
 	if err != nil {
 		return fmt.Errorf("Cannot create request: %v", err)
