@@ -1,5 +1,6 @@
 {
     "provider_name": "f5_xc",
+    "f5_tenant_url": "customer.specific.url.f5.io",
     "f5_p12_certificate_path": "/home/pavel/volterra.p12",
     "f5_p12_certificate_password": "qwerty",
 

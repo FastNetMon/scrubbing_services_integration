@@ -34,6 +34,7 @@ type Configuration struct {
 	F5Password string `json:"f5_password"`
 
 	// F5 XC credentials
+	F5TenantURL             string `json:"f5_tenant_url"`
 	F5PemCertificatePath    string `json:"f5_pem_certificate_path"`
 	F5PemCertificateKeyPath string `json:"f5_pem_certificate_key_path"`
 
@@ -62,8 +63,6 @@ type Configuration struct {
 var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdFlags)
 
 var f5_api_url string = "https://portal.f5silverline.com/api/v1/"
-
-var f5_xc_api_url string = "https://f5-neteng.console.ves.volterra.io"
 
 var path_api_url string = "https://api.path.net/"
 
@@ -205,6 +204,10 @@ func main() {
 		}
 
 	} else if conf.ProviderName == "f5_xc" {
+		if conf.F5TenantURL == "" {
+			fast_logger.Fatal("Please set f5_tenant_url in configuration")
+		}
+
 		if conf.F5P12CertificatePath == "" {
 
 			if conf.F5PemCertificatePath == "" {
@@ -220,7 +223,7 @@ func main() {
 			// P12 certificate specified
 		}
 
-		err = f5_xc_announce_route(conf.F5PemCertificatePath, conf.F5PemCertificateKeyPath, conf.F5P12CertificatePath, conf.F5P12CertificatePassword, network_cidr_prefix, withdrawal)
+		err = f5_xc_announce_route(conf.F5TenantURL, conf.F5PemCertificatePath, conf.F5PemCertificateKeyPath, conf.F5P12CertificatePath, conf.F5P12CertificatePassword, network_cidr_prefix, withdrawal)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
@@ -386,7 +389,7 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 // As alternative to using their P12 certificates we can convert P12 to PEM as they're easier to operate from Go
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -clcerts -nokeys -out usercert.pem
 // openssl pkcs12 -in f5-neteng.console.ves.volterra.io-service.p12 -nocerts -out userkey.pem -nodes
-func f5_xc_announce_route(certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
+func f5_xc_announce_route(f5_xc_api_url string, certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
 	var err error
 
 	tls_client_config := &tls.Config{}
