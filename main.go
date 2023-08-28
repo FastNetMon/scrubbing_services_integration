@@ -392,6 +392,13 @@ func find_magic_transit_route_by_prefix(static_routes []cloudflare.MagicTransitS
 func f5_xc_announce_route(f5_xc_api_url string, certificate_path string, certificate_key_path string, p12_certificate_path string, p12_certificate_password string, prefix string, withdrawal bool) error {
 	var err error
 
+	// Customers may accidentally use format with https prefix and we can handle it
+	if !strings.HasPrefix(f5_xc_api_url, "https://") {
+		f5_xc_api_url = "https://" + f5_xc_api_url
+	}
+
+	log.Printf("Tenant hostname: %s", f5_xc_api_url)
+
 	tls_client_config := &tls.Config{}
 
 	if p12_certificate_path != "" {
