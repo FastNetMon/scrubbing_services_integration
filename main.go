@@ -428,6 +428,15 @@ func f5_xc_announce_route(f5_xc_api_url string, certificate_path string, certifi
 			Leaf:        cert,
 		}
 
+		log.Printf("Certificate expiry date: %s", cert.NotAfter)
+
+		// Check if authentication certificate is expired
+		if time.Now().After(cert.NotAfter) {
+			log.Printf("Your certificate is expired, you need to renew it manually")
+		} else {
+			log.Printf("Your certificate is valid")
+		}
+
 		tls_client_config.Certificates = []tls.Certificate{tls_cert}
 	} else {
 
