@@ -23,41 +23,44 @@ import (
 	"github.com/fastnetmon/fastnetmon-go"
 )
 
+// TODO NB! PLEASE DO NOT TOUCH NAMES OF FIELDS HERE AS IT WILL BREAK CONFIGURATION INTEGRATION WITH FASTNETMON
+// Please follow exactly same naming for all new fields
+// After any changes here you have to copy structure to fcli/fcli.go to maintain fcli integration logic
 type Configuration struct {
-	Log_path string `json:"log_path"`
+	Log_path string `json:"log_path" fastnetmon_type:"string"`
 
 	// f5, f5_xc or path or cloudflare
-	ProviderName string `json:"provider_name"`
+	Provider_name string `json:"provider_name" fastnetmon_type:"string"`
 
 	// F5 Silverline credentials
-	F5Email    string `json:"f5_email"`
-	F5Password string `json:"f5_password"`
+	F5_email    string `json:"f5_email" fastnetmon_type:"string"`
+	F5_password string `json:"f5_password" fastnetmon_type:"string" sensitive:"true"`
 
 	// F5 XC credentials
-	F5TenantURL             string `json:"f5_tenant_url"`
-	F5PemCertificatePath    string `json:"f5_pem_certificate_path"`
-	F5PemCertificateKeyPath string `json:"f5_pem_certificate_key_path"`
+	F5_tenant_url               string `json:"f5_tenant_url" fastnetmon_type:"string"`
+	F5_pem_certificate_path     string `json:"f5_pem_certificate_path" fastnetmon_type:"string"`
+	F5_pem_certificate_key_path string `json:"f5_pem_certificate_key_path" fastnetmon_type:"string"`
 
 	// Their original format
-	F5P12CertificatePath     string `json:"f5_p12_certificate_path"`
-	F5P12CertificatePassword string `json:"f5_p12_certificate_password"`
+	F5_p12_certificate_path     string `json:"f5_p12_certificate_path" fastnetmon_type:"string" `
+	F5_p12_certificate_password string `json:"f5_p12_certificate_password" fastnetmon_type:"string" sensitive:"true"`
 
 	// Path credentials
-	PathUsername string `json:"path_username"`
-	PathPassword string `json:"path_password"`
+	Path_username string `json:"path_username" fastnetmon_type:"string"`
+	Path_password string `json:"path_password" fastnetmon_type:"string" sensitive:"true"`
 
 	// Cloudflare credentials
-	CloudflareAPIToken string `json:"cloudflare_api_token"`
+	Cloudflare_api_token string `json:"cloudflare_api_token" fastnetmon_type:"string" sensitive:"true"`
 
-	CloudflareAccountID string `json:"cloudflare_account_id"`
+	Cloudflare_account_id string `json:"cloudflare_account_id" fastnetmon_type:"string"`
 
-	CloudflareNextHop string `json:"cloudflare_next_hop"`
+	Cloudflare_next_hop string `json:"cloudflare_next_hop" fastnetmon_type:"string"`
 
 	// zero by default
-	CloudflarePriority int `json:"cloudflare_priority"`
+	Cloudflare_priority uint `json:"cloudflare_priority" fastnetmon_type:"positive_integer_with_zero"`
 
 	// Zero by default
-	CloudflareWeight int `json:"cloudflare_weight"`
+	Cloudflare_weight uint `json:"cloudflare_weight" fastnetmon_type:"positive_integer_with_zero"`
 }
 
 var fast_logger = log.New(os.Stderr, fmt.Sprintf(" %d ", os.Getpid()), log.LstdFlags)
@@ -173,17 +176,17 @@ func main() {
 
 	fast_logger.Printf("Prefix to announce: %v", network_cidr_prefix)
 
-	if conf.ProviderName == "f5" {
+	if conf.Provider_name == "f5" {
 
-		if conf.F5Email == "" {
+		if conf.F5_email == "" {
 			fast_logger.Fatal("Please set f5_email field in configuration")
 		}
 
-		if conf.F5Password == "" {
+		if conf.F5_password == "" {
 			fast_logger.Fatal("Please set f5_password field in configuration")
 		}
 
-		auth_token, err := f5_auth(conf.F5Email, conf.F5Password, fake_auth)
+		auth_token, err := f5_auth(conf.F5_email, conf.F5_password, fake_auth)
 
 		if err != nil {
 			fast_logger.Fatalf("Auth failed: %v", err)
@@ -203,18 +206,18 @@ func main() {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 		}
 
-	} else if conf.ProviderName == "f5_xc" {
-		if conf.F5TenantURL == "" {
+	} else if conf.Provider_name == "f5_xc" {
+		if conf.F5_tenant_url == "" {
 			fast_logger.Fatal("Please set f5_tenant_url in configuration")
 		}
 
-		if conf.F5P12CertificatePath == "" {
+		if conf.F5_p12_certificate_path == "" {
 
-			if conf.F5PemCertificatePath == "" {
+			if conf.F5_pem_certificate_path == "" {
 				fast_logger.Fatal("Please set f5_certificate_path field in configuration")
 			}
 
-			if conf.F5PemCertificateKeyPath == "" {
+			if conf.F5_pem_certificate_key_path == "" {
 				fast_logger.Fatal("Please set f5_certificate_key_path field in configuration")
 			}
 
@@ -223,22 +226,22 @@ func main() {
 			// P12 certificate specified
 		}
 
-		err = f5_xc_announce_route(conf.F5TenantURL, conf.F5PemCertificatePath, conf.F5PemCertificateKeyPath, conf.F5P12CertificatePath, conf.F5P12CertificatePassword, network_cidr_prefix, withdrawal)
+		err = f5_xc_announce_route(conf.F5_tenant_url, conf.F5_pem_certificate_path, conf.F5_pem_certificate_key_path, conf.F5_p12_certificate_path, conf.F5_p12_certificate_password, network_cidr_prefix, withdrawal)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 		}
 
-	} else if conf.ProviderName == "path" {
-		if conf.PathUsername == "" {
+	} else if conf.Provider_name == "path" {
+		if conf.Path_username == "" {
 			fast_logger.Fatal("Please set path_username field in configuration")
 		}
 
-		if conf.PathPassword == "" {
+		if conf.Path_password == "" {
 			fast_logger.Fatal("Please set path_password field in configuration")
 		}
 
-		auth_token, err := path_auth(conf.PathUsername, conf.PathPassword, fake_auth)
+		auth_token, err := path_auth(conf.Path_username, conf.Path_password, fake_auth)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot auth: %v", err)
@@ -257,21 +260,21 @@ func main() {
 		if err != nil {
 			fast_logger.Fatalf("Cannot announce prefix: %v with error: %v", network_cidr_prefix, err)
 		}
-	} else if conf.ProviderName == "cloudflare" {
-		if conf.CloudflareAPIToken == "" {
+	} else if conf.Provider_name == "cloudflare" {
+		if conf.Cloudflare_api_token == "" {
 			fast_logger.Fatal("Please set cloudflare_api_token field in configuration")
 		}
 
-		if conf.CloudflareAccountID == "" {
+		if conf.Cloudflare_account_id == "" {
 			fast_logger.Fatal("Please set cloudflare_account_id field in configuration")
 		}
 
-		if conf.CloudflareNextHop == "" {
+		if conf.Cloudflare_next_hop == "" {
 			fast_logger.Fatal("Please set cloudflare_next_hop field in configuration")
 		}
 
 		// We support only scoped API token which does not need email
-		cloudflare_api, err := cloudflare.NewWithAPIToken(conf.CloudflareAPIToken)
+		cloudflare_api, err := cloudflare.NewWithAPIToken(conf.Cloudflare_api_token)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot create Cloudflare API client: %v", err)
@@ -291,7 +294,7 @@ func main() {
 
 		fast_logger.Printf("Getting list of static Magic Transit Routes")
 
-		magic_transit_tunnels, err := cloudflare_api.ListMagicTransitStaticRoutes(ctx, conf.CloudflareAccountID)
+		magic_transit_tunnels, err := cloudflare_api.ListMagicTransitStaticRoutes(ctx, conf.Cloudflare_account_id)
 
 		if err != nil {
 			fast_logger.Fatalf("Cannot get Magic Transit tunnels: %v", err)
@@ -310,7 +313,7 @@ func main() {
 
 			fast_logger.Printf("Preparing to withdraw static announce with id %s", static_route_id)
 
-			_, err := cloudflare_api.DeleteMagicTransitStaticRoute(ctx, conf.CloudflareAccountID, static_route_id)
+			_, err := cloudflare_api.DeleteMagicTransitStaticRoute(ctx, conf.Cloudflare_account_id, static_route_id)
 
 			if err != nil {
 				fast_logger.Fatalf("Failed to remove static announce: %s", err)
@@ -327,21 +330,21 @@ func main() {
 			static_route := cloudflare.MagicTransitStaticRoute{
 				Prefix:      network_cidr_prefix,
 				Description: "FastNetMon Advanced announce for prefix " + network_cidr_prefix,
-				Nexthop:     conf.CloudflareNextHop,
+				Nexthop:     conf.Cloudflare_next_hop,
 			}
 
-			if conf.CloudflarePriority != 0 {
-				static_route.Priority = conf.CloudflarePriority
+			if conf.Cloudflare_priority != 0 {
+				static_route.Priority = int(conf.Cloudflare_priority)
 			}
 
-			if conf.CloudflareWeight != 0 {
-				static_route.Weight = conf.CloudflareWeight
+			if conf.Cloudflare_weight != 0 {
+				static_route.Weight = int(conf.Cloudflare_weight)
 			}
 
 			fast_logger.Printf("Prepared announce: %+v", static_route)
 
 			// Do announce
-			_, err := cloudflare_api.CreateMagicTransitStaticRoute(ctx, conf.CloudflareAccountID, static_route)
+			_, err := cloudflare_api.CreateMagicTransitStaticRoute(ctx, conf.Cloudflare_account_id, static_route)
 
 			if err != nil {
 				fast_logger.Fatalf("Cannot create route: %v", err)
@@ -351,7 +354,7 @@ func main() {
 		}
 
 	} else {
-		fast_logger.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.ProviderName)
+		fast_logger.Fatalf("Unknown provider name, we support only 'f5' or 'path': %s", conf.Provider_name)
 	}
 }
 
