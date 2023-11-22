@@ -89,8 +89,9 @@ func main() {
 		fast_logger.Fatalf("Cannot decode configuration file %s: %v", configuration_file_path, err)
 	}
 
+	// Specify log file if customer did not provide it
 	if conf.Log_path == "" {
-		fast_logger.Fatal("Please set non empty value for log_path")
+		conf.Log_path = "/var/log/fastnetmon/fastnetmon_scrubbing_services_integration.log"
 	}
 
 	log_file, err := os.OpenFile(conf.Log_path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
