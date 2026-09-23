@@ -14,4 +14,3 @@ echo '{"action":"ban", "ip":"1.2.3.4"}' | LIST_PROFILE_TEMPLATES=1 bin/scrubbing
 echo '{"action":"ban", "ip":"1.2.3.4"}' | LIST_GCORE_NETWORKS=1 bin/scrubbing_services_integration
 ```
 
-It needs to be built manually and then uploaded to bucket
