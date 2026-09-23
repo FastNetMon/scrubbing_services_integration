@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.5'
+
+      - run: go version
+
+      # We need to explicitly disable CGO to avoid issues on machines with older glibc
+      - name: Build
+        run: CGO_ENABLED=0 go build -o scrubbing_services_integration
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrubbing_services_integration
+          path: scrubbing_services_integration
+
+      - name: Install s3cmd
+        if: github.event_name == 'push'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y s3cmd
+
+      - name: Upload to GCS
+        if: github.event_name == 'push'
+        env:
+          GCS_ACCESS_KEY: ${{ secrets.GCS_ACCESS_KEY }}
+          GCS_SECRET_KEY: ${{ secrets.GCS_SECRET_KEY }}
+        run: |
+          s3cmd \
+            --access_key="$GCS_ACCESS_KEY" \
+            --secret_key="$GCS_SECRET_KEY" \
+            --signature-v2 \
+            --host=storage.googleapis.com \
+            --host-bucket="%(bucket).storage.googleapis.com" \
+            put scrubbing_services_integration \
+            s3://scrubbing_services_integration/scrubbing_services_integration_${{ github.sha }}
